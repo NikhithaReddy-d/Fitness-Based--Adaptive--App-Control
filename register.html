@@ -1,0 +1,87 @@
+<!doctype html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>Guild Registration</title>
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&display=swap" rel="stylesheet">
+    <style>
+        body { margin: 0; background: #000; color: white; font-family: 'Orbitron', sans-serif; height: 100vh; display: flex; align-items: center; justify-content: center; }
+        .card { background: #050a10; border: 1px solid #00d4ff; padding: 40px; border-radius: 5px; text-align: center; width: 350px; position: relative; }
+        input, select { width: 100%; padding: 12px; margin: 10px 0; background: #000; border: 1px solid #222; color: #fff; font-family: 'Orbitron'; box-sizing: border-box; }
+        input:focus { border-color: #00d4ff; outline: none; }
+        button { width: 100%; padding: 15px; background: #00d4ff; border: none; color: #000; font-weight: bold; cursor: pointer; margin-top: 10px; transition: 0.2s; }
+        button:hover:not(:disabled) { background: #fff; }
+        button:disabled { opacity: 0.5; cursor: not-allowed; }
+        #msg { margin-top: 15px; font-size: 10px; color: #888; text-transform: uppercase; }
+    </style>
+</head>
+<body>
+
+<div class="card">
+    <h2 style="color:#00d4ff; margin-bottom:30px;">ID REGISTRATION</h2>
+    
+    <input id="name" placeholder="FULL NAME">
+    <input id="email" type="email" placeholder="NEW EMAIL" autocomplete="off">
+    <input id="password" type="password" placeholder="PASSWORD" autocomplete="off">
+    
+    <select id="gender">
+        <option value="">GENDER</option>
+        <option value="Male">MALE</option>
+        <option value="Female">FEMALE</option>
+    </select>
+
+    <button id="regBtn">INITIALIZE ACCOUNT</button>
+    <p id="msg" id="status-text">Ready for input...</p>
+</div>
+
+<script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+<script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
+<script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
+<script src="firebase.js"></script>
+<script src="auth.js"></script>
+
+<script>
+    const regBtn = document.getElementById('regBtn');
+    const msg = document.getElementById('msg');
+
+    regBtn.onclick = async () => {
+        const n = document.getElementById('name').value.trim();
+        const e = document.getElementById('email').value.trim();
+        const p = document.getElementById('password').value;
+        const g = document.getElementById('gender').value;
+
+        if(!n || !e || !p || !g) {
+            msg.style.color = "#ff4d4d";
+            msg.innerText = "Error: Missing Credentials";
+            return;
+        }
+
+        // 1. Lock Button (Prevents the 'Already in use' ghost error)
+        regBtn.disabled = true;
+        msg.style.color = "#00d4ff";
+        msg.innerText = "Syncing with Hunter Database...";
+
+        try {
+            const res = await registerUser(n, e, p, g);
+            
+            if(res.success) {
+                msg.style.color = "#00ff88";
+                msg.innerText = "Success. Redirecting to Menu...";
+                setTimeout(() => { window.location.href = 'menu.html'; }, 1000);
+            } else {
+                // 2. If it fails, unlock button and show why
+                msg.style.color = "#ff4d4d";
+                msg.innerText = res.error;
+                regBtn.disabled = false;
+                
+                // Tip: If it says 'Already in use', try adding a number to the email
+                console.log("Registration failed. Try a different email string.");
+            }
+        } catch (err) {
+            msg.innerText = "Connection Interrupted";
+            regBtn.disabled = false;
+        }
+    };
+</script>
+</body>
+</html>

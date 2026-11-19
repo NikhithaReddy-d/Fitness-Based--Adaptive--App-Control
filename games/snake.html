@@ -1,0 +1,200 @@
+<!doctype html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>SYSTEM | SHADOW LEVELING</title>
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&display=swap" rel="stylesheet">
+    <style>
+        :root { --sys-blue: #00d4ff; --sys-dark: #000a12; }
+        body { margin: 0; background: var(--sys-dark); color: white; font-family: 'Orbitron', sans-serif; overflow: hidden; }
+        
+        #ui-layer { position: absolute; width: 100%; height: 100%; z-index: 100; pointer-events: none; }
+        
+        #hud { 
+            position: absolute; top: 20px; left: 50%; transform: translateX(-50%);
+            background: rgba(0, 10, 20, 0.9); border: 2px solid var(--sys-blue); padding: 15px 40px;
+            text-align: center; box-shadow: 0 0 20px rgba(0,212,255,0.4); border-radius: 10px;
+        }
+        #nav-arrow { font-size: 24px; color: #fff; text-shadow: 0 0 10px var(--sys-blue); display: block; margin-bottom: 5px; }
+
+        #access-btn-container {
+            position: absolute; inset: 0; display: none; 
+            justify-content: center; align-items: center; pointer-events: auto;
+            background: rgba(0,0,0,0.95); z-index: 500;
+        }
+        #access-btn {
+            background: none; color: var(--sys-blue); border: 3px solid var(--sys-blue); padding: 25px 60px;
+            font-size: 24px; font-weight: bold; cursor: pointer; box-shadow: 0 0 30px var(--sys-blue);
+            text-transform: uppercase; letter-spacing: 5px; font-family: 'Orbitron'; transition: 0.3s;
+        }
+        #access-btn:hover { background: var(--sys-blue); color: #000; }
+
+        #apps-page {
+            position: fixed; inset: 0; background: var(--sys-dark); z-index: 600;
+            display: none; flex-direction: column; align-items: center; justify-content: center;
+        }
+        .app-grid { display: grid; grid-template-columns: repeat(2, 160px); gap: 25px; }
+        .app-card { 
+            width: 140px; height: 140px; background: rgba(0,212,255,0.05); border: 1px solid var(--sys-blue);
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+            text-decoration: none; color: white; border-radius: 12px; transition: 0.3s;
+        }
+        .app-card:hover { transform: scale(1.1); border-color: white; }
+        
+        canvas { display: block; width: 100vw; height: 100vh; }
+    </style>
+</head>
+<body>
+
+<div id="ui-layer">
+    <div id="hud">
+        <span id="nav-arrow">SYNCING SYSTEM...</span>
+        <div id="score-text" style="font-size: 16px; letter-spacing: 2px;">MANA CORES: 0 / 20</div>
+    </div>
+</div>
+
+<div id="access-btn-container">
+    <button id="access-btn" onclick="openApps()">[ CLAIM REWARD ]</button>
+</div>
+
+<div id="apps-page">
+    <h1 style="letter-spacing: 10px; color: var(--sys-blue); margin-bottom: 40px;">INVENTORY UNLOCKED</h1>
+    <div class="app-grid">
+        <a href="https://www.instagram.com" target="_blank" class="app-card">
+            <img src="https://upload.wikimedia.org/wikipedia/commons/e/e7/Instagram_logo_2016.svg" width="50">
+            <div style="font-size: 10px; margin-top:10px;">INSTAGRAM</div>
+        </a>
+        <a href="https://www.youtube.com" target="_blank" class="app-card">
+            <img src="https://upload.wikimedia.org/wikipedia/commons/0/09/YouTube_full-color_icon_%282017%29.svg" width="50">
+            <div style="font-size: 10px; margin-top:10px;">YOUTUBE</div>
+        </a>
+    </div>
+</div>
+
+<canvas id="out"></canvas>
+
+<script src="https://cdn.jsdelivr.net/npm/@mediapipe/pose/pose.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js"></script>
+
+
+
+<script>
+const canvas = document.getElementById('out');
+const ctx = canvas.getContext('2d');
+const scoreText = document.getElementById('score-text');
+const navArrow = document.getElementById('nav-arrow');
+
+let snake = [];
+let food = { x: 0.3, y: 0.3 };
+let score = 0;
+let maxSegments = 25; 
+let gameActive = true;
+
+function resize() {
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+}
+window.addEventListener('resize', resize);
+resize();
+
+const pose = new Pose({ locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/pose/${file}` });
+pose.setOptions({ modelComplexity: 1, smoothLandmarks: true, minDetectionConfidence: 0.5 });
+
+function spawnFood() {
+    food.x = 0.15 + Math.random() * 0.7;
+    food.y = 0.15 + Math.random() * 0.7;
+}
+
+pose.onResults((results) => {
+    if (!gameActive) return;
+
+    // Clear Canvas - NO CAMERA DRAWING
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+    if (results.poseLandmarks) {
+        const lm = results.poseLandmarks;
+        
+        // Tracking Torso Center (Midpoint between shoulders)
+        const rawX = (lm[11].x + lm[12].x) / 2;
+        const rawY = (lm[11].y + lm[12].y) / 2;
+        
+        // Mirror X for intuitive control (Move left = Snake moves left)
+        const ux = (1 - rawX) * canvas.width;
+        const uy = rawY * canvas.height;
+
+        // Update Snake segments
+        snake.push({ x: ux, y: uy });
+        if (snake.length > maxSegments) snake.shift();
+
+        // Guidance Logic (Compass)
+        const dx = food.x - rawX;
+        const dy = food.y - rawY;
+        if (Math.abs(dx) > Math.abs(dy)) {
+            navArrow.innerText = dx < 0 ? "➡️ MOVE RIGHT" : "⬅️ MOVE LEFT";
+        } else {
+            navArrow.innerText = dy > 0 ? "⬇️ MOVE DOWN" : "⬆️ MOVE UP";
+        }
+
+        // Collision Check (0.08 is the hit radius)
+        const dist = Math.sqrt(Math.pow(rawX - food.x, 2) + Math.pow(rawY - food.y, 2));
+        if (dist < 0.08) {
+            score++;
+            scoreText.innerText = `MANA CORES: ${score} / 20`;
+            maxSegments += 8;
+            spawnFood();
+            if (score >= 20) {
+                gameActive = false;
+                document.getElementById('access-btn-container').style.display = "flex";
+            }
+        }
+
+        drawSnake();
+        drawFood();
+    }
+});
+
+function drawFood() {
+    ctx.save();
+    ctx.shadowBlur = 20;
+    ctx.shadowColor = "#00d4ff";
+    ctx.fillStyle = "#fff";
+    ctx.beginPath();
+    // Mirror food display to match snake control
+    ctx.arc((1 - food.x) * canvas.width, food.y * canvas.height, 15, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+}
+
+function drawSnake() {
+    snake.forEach((seg, i) => {
+        const ratio = i / snake.length;
+        ctx.save();
+        ctx.shadowBlur = ratio * 15;
+        ctx.shadowColor = "#00d4ff";
+        
+        // Head is white, tail is neon blue
+        ctx.fillStyle = i === snake.length - 1 ? "#fff" : `rgba(0, 212, 255, ${ratio})`;
+        
+        ctx.beginPath();
+        // Tail is smaller, Head is larger
+        const size = 12 + (ratio * 12);
+        ctx.arc(seg.x, seg.y, size, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.restore();
+    });
+}
+
+const videoElement = document.createElement('video');
+const camera = new Camera(videoElement, {
+    onFrame: async () => { await pose.send({ image: videoElement }); },
+    width: 640, height: 480
+});
+camera.start();
+
+function openApps() {
+    document.getElementById('access-btn-container').style.display = "none";
+    document.getElementById('apps-page').style.display = "flex";
+}
+</script>
+</body>
+</html>

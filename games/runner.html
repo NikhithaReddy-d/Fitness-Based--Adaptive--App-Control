@@ -1,0 +1,234 @@
+<!doctype html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>System Runner | Tactical Control</title>
+    <script src="https://cdn.jsdelivr.net/npm/phaser@3.55.2/dist/phaser.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/pose/pose.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&display=swap" rel="stylesheet">
+    <style>
+        body { margin: 0; background: #010205; overflow: hidden; display: flex; flex-direction: column; height: 100vh; font-family: 'Orbitron', sans-serif; }
+        #gameDiv { flex-grow: 1; display: flex; justify-content: center; align-items: center; background: #000; position: relative; }
+        
+        .controls { display: flex; gap: 10px; padding: 15px; background: rgba(0,0,0,0.9); border-bottom: 2px solid #00d4ff; align-items: center; z-index: 1001; }
+        .btn { padding: 10px 20px; border: 1px solid #00d4ff; background: transparent; color: #00d4ff; font-family: 'Orbitron'; cursor: pointer; border-radius: 4px; transition: 0.3s; font-weight: bold; }
+        .btn:hover { background: #00d4ff; color: #000; }
+        
+        #reward-bar {
+            position: fixed; bottom: -180px; left: 0; width: 100%; height: 160px;
+            background: rgba(0, 10, 20, 0.98); border-top: 3px solid #00ff88;
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+            transition: bottom 0.6s cubic-bezier(0.175, 0.885, 0.32, 1.275); z-index: 2000;
+        }
+        #reward-bar.active { bottom: 0; }
+        .app-row { display: flex; gap: 20px; margin-top: 15px; }
+
+        .app-icon {
+            width: 70px; height: 70px; background: rgba(0, 255, 136, 0.1);
+            border: 2px solid #00ff88; border-radius: 12px; color: white;
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+            cursor: pointer; font-size: 10px; transition: 0.3s; text-align: center;
+        }
+        .app-icon:hover { background: #00ff88; color: black; transform: translateY(-5px); }
+        
+        #timer-display { color: #00d4ff; font-weight: bold; border: 1px solid #00d4ff; padding: 5px 15px; border-radius: 4px; min-width: 120px; text-align: center; }
+        .reminder-active { color: #ff3333 !important; border-color: #ff3333 !important; animation: blink 1s infinite; }
+        @keyframes blink { 50% { opacity: 0.5; } }
+    </style>
+</head>
+<body>
+
+<div class="controls">
+    <button class="btn" onclick="startGame()">START RUN</button>
+    <button class="btn" onclick="calibrate()">RE-CALIBRATE</button>
+    <div id="status" style="color:#ff3333; font-size:12px; margin-left: 10px; border: 1px solid currentColor; padding: 5px; border-radius: 4px;">SENSORS: OFF</div>
+    
+    <div style="margin-left: auto; display: flex; align-items: center; gap: 20px; color: white;">
+        <div id="timer-display">GAME TIME: 00:00</div>
+        <div>TARGET: <span id="score" style="color:#00ff88">0</span>/300</div>
+        <span id="sys-msg" style="color:#00d4ff; font-size: 14px;">READY</span>
+    </div>
+</div>
+
+<div id="gameDiv"></div>
+
+<div id="reward-bar">
+    <div id="usage-msg" style="color:#00ff88; font-weight:bold; letter-spacing: 1px;">QUEST COMPLETE! APPS UNLOCKED</div>
+    <div class="app-row">
+        <div class="app-icon" onclick="openApp('https://www.youtube.com')"><b>YT</b><br>YouTube</div>
+        <div class="app-icon" onclick="openApp('https://web.whatsapp.com')"><b>WA</b><br>WhatsApp</div>
+        <div class="app-icon" onclick="openApp('https://www.instagram.com')"><b>IG</b><br>Instagram</div>
+        <div class="app-icon" onclick="openApp('https://www.google.com')"><b>G</b><br>Search</div>
+        <button class="btn" style="border-color: #ff3333; color: #ff3333; height: 70px;" onclick="closeRewards()">CLOSE</button>
+    </div>
+</div>
+
+<script>
+let score = 0;
+const GOAL_SCORE = 300;
+let bodyX = 0.5, bodyY = 0.5, sensorsReady = false;
+let baselineY = null; // Fix for auto-jumping
+let isPaused = true, isDead = false, appMode = false;
+let seconds = 0, timerInterval;
+
+const config = { 
+    type: Phaser.AUTO, width: 900, height: 500, parent: 'gameDiv', 
+    physics:{default:'arcade', arcade:{gravity:{y:1400}}}, // Slightly heavier gravity for better feel
+    scene:{preload, create, update} 
+};
+let game = new Phaser.Game(config);
+
+function preload(){ 
+    this.load.image('sky', 'https://labs.phaser.io/assets/skies/space3.png');
+    this.load.spritesheet('agent', 'https://labs.phaser.io/assets/sprites/dude.png', { frameWidth: 32, frameHeight: 48 });
+    this.load.image('mana', 'https://labs.phaser.io/assets/sprites/diamond.png');
+}
+
+function create(){
+    this.add.image(450, 250, 'sky').setDepth(0);
+    
+    let graphics = this.make.graphics({ x: 0, y: 0, add: false });
+    graphics.fillStyle(0xff0000, 1); graphics.fillCircle(15, 15, 15);
+    graphics.lineStyle(2, 0xffffff, 1); graphics.strokeCircle(15, 15, 12);
+    graphics.generateTexture('bomb_tech', 30, 30);
+
+    this.player = this.physics.add.sprite(450, 400, 'agent').setScale(2).setDepth(100);
+    this.player.setCollideWorldBounds(true);
+    
+    this.anims.create({ key: 'run', frames: this.anims.generateFrameNumbers('agent', { start: 5, end: 8 }), frameRate: 10, repeat: -1 });
+    this.items = this.physics.add.group();
+
+    this.time.addEvent({ delay: 800, loop: true, callback: () => {
+        if(!sensorsReady || isPaused || isDead || appMode) return;
+        const x = Phaser.Math.Between(50, 850);
+        const isBomb = Math.random() < 0.35;
+        const item = this.items.create(x, -50, isBomb ? 'bomb_tech' : 'mana');
+        item.setDepth(50);
+        item.body.allowGravity = false;
+        item.setVelocityY(250 + (score * 0.15));
+        if(isBomb) this.tweens.add({ targets: item, alpha: 0.3, duration: 200, yoyo: true, loop: -1 });
+    }});
+
+    this.physics.add.overlap(this.player, this.items, (p, item) => {
+        if(isDead || isPaused) return;
+        if(item.texture.key === 'bomb_tech') {
+            isDead = true; clearInterval(timerInterval);
+            this.physics.pause(); this.player.setTint(0xff0000);
+            document.getElementById('sys-msg').textContent = "CRITICAL FAILURE";
+            setTimeout(() => { stopGame(); startGame(); }, 1200);
+        } else {
+            score += 10;
+            document.getElementById('score').textContent = score;
+            if(score >= GOAL_SCORE) unlockApps();
+        }
+        item.destroy();
+    });
+}
+
+function update() {
+    if(!sensorsReady || isPaused || isDead) return;
+
+    // 1. Horizontal Movement (Mirrored)
+    let targetX = bodyX * 900;
+    this.player.x += (targetX - this.player.x) * 0.18; 
+
+    // 2. Jump Logic (Relative to Baseline)
+    if (baselineY === null && bodyY !== 0) baselineY = bodyY;
+
+    // Detect if head moved UP (y value decreases) significantly from starting position
+    const jumpThreshold = 0.12; 
+    if (baselineY - bodyY > jumpThreshold && this.player.body.blocked.down) {
+        this.player.setVelocityY(-800);
+        document.getElementById('sys-msg').textContent = "JUMPING";
+        setTimeout(() => { if(!isDead) document.getElementById('sys-msg').textContent = "RUNNING"; }, 500);
+    }
+}
+
+function calibrate() {
+    baselineY = bodyY;
+    document.getElementById('sys-msg').textContent = "CALIBRATED";
+}
+
+function unlockApps() {
+    appMode = true; isPaused = true;
+    game.scene.scenes[0].physics.pause();
+    document.getElementById('reward-bar').classList.add('active');
+    document.getElementById('sys-msg').textContent = "ACCESS GRANTED";
+    
+    clearInterval(timerInterval);
+    seconds = 600; 
+    updateDisplay("APP TIME LEFT: ");
+    
+    timerInterval = setInterval(() => {
+        seconds--;
+        updateDisplay("APP TIME LEFT: ");
+        if(seconds <= 60) document.getElementById('timer-display').classList.add('reminder-active');
+        if(seconds <= 0) { 
+            clearInterval(timerInterval); 
+            closeRewards();
+            stopGame(); 
+        }
+    }, 1000);
+}
+
+function updateDisplay(prefix) {
+    let m = Math.floor(Math.abs(seconds) / 60).toString().padStart(2, '0');
+    let s = (Math.abs(seconds) % 60).toString().padStart(2, '0');
+    document.getElementById('timer-display').textContent = `${prefix}${m}:${s}`;
+}
+
+function openApp(url) { window.open(url, '_blank'); }
+function closeRewards() { document.getElementById('reward-bar').classList.remove('active'); }
+
+function startGame() {
+    if(!sensorsReady) { alert("Sensors not ready!"); return; }
+    isPaused = false; isDead = false; appMode = false;
+    score = 0; seconds = 0;
+    document.getElementById('score').textContent = "0";
+    document.getElementById('sys-msg').textContent = "RUNNING";
+    clearInterval(timerInterval);
+    timerInterval = setInterval(() => { seconds++; updateDisplay("GAME TIME: "); }, 1000);
+    const scene = game.scene.scenes[0];
+    scene.physics.resume(); scene.player.clearTint(); scene.player.play('run', true);
+}
+
+function stopGame() {
+    isPaused = true; score = 0; 
+    clearInterval(timerInterval);
+    document.getElementById('score').textContent = "0";
+    document.getElementById('timer-display').classList.remove('reminder-active');
+    const scene = game.scene.scenes[0];
+    if(scene && scene.items) {
+        scene.items.clear(true, true); 
+        scene.physics.pause();
+        scene.player.x = 450;
+        scene.player.stop();
+    }
+}
+
+const video = document.createElement('video');
+const pose = new Pose({ locateFile: (f) => `https://cdn.jsdelivr.net/npm/@mediapipe/pose/${f}` });
+
+pose.setOptions({ modelComplexity: 0, minDetectionConfidence: 0.5 });
+pose.onResults(res => {
+    if (res.poseLandmarks) {
+        if(!sensorsReady) {
+            sensorsReady = true;
+            document.getElementById('status').textContent = "SENSORS ONLINE";
+            document.getElementById('status').style.color = "#00ff88";
+        }
+        // Landmark 0 is the nose/head center
+        bodyX = 1 - res.poseLandmarks[0].x; 
+        bodyY = res.poseLandmarks[0].y;
+    }
+});
+
+const cam = new Camera(video, {
+    onFrame: async () => { await pose.send({ image: video }); },
+    width: 640, height: 480
+});
+cam.start();
+</script>
+</body>
+</html>

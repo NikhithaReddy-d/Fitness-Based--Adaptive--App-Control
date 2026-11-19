@@ -1,0 +1,94 @@
+<!doctype html>
+<html>
+<head>
+    <title>Profile - System Access</title>
+    <link rel="stylesheet" href="style.css">
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&family=Rajdhani:wght@500;700&display=swap" rel="stylesheet">
+</head>
+<body>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
+    <script src="firebase.js"></script>
+
+    <div class="nav-header">
+        <div class="brand" style="font-family:'Orbitron'; color:#00d4ff;">USER PROFILE</div>
+        <div class="nav-links">
+            <a href="menu.html" class="nav-link">MENU</a>
+            <a href="dashboard.html" class="nav-link">DASHBOARD</a>
+            <a href="profile.html" class="nav-link active">PROFILE</a>
+            <a href="activity.html" class="nav-link">ACTIVITY</a>
+            <a href="history.html" class="nav-link">HISTORY</a>
+            <a href="reminders.html" class="nav-link">REMINDERS</a>
+            <a href="admin.html" class="nav-link">ADMIN</a>
+            <button id="logout" style="clip-path:none; padding:5px 15px;">LOGOUT</button>
+        </div>
+    </div>
+
+    <div class="main-wrapper">
+        <div class="profile-container">
+            <div class="profile-header card">
+                <div class="avatar-section">
+                    <div class="avatar" id="userAvatar">?</div>
+                    <p id="profileEmail" style="color:#888;">email@example.com</p>
+                    <h2 id="profileName" style="font-family:'Orbitron'; color:#00d4ff;">USER</h2>
+                    <span class="level-badge">LEVEL <span id="profileLevel">1</span></span>
+                </div>
+            </div>
+
+            <div class="profile-details card">
+                <h3 style="font-family:'Orbitron'; color:#bc6ff1;">PROFILE INFORMATION</h3>
+                
+                <div class="form-group">
+                    <label>FULL NAME</label>
+                    <input type="text" id="editName" placeholder="Enter your name">
+                </div>
+                
+                <div class="form-group">
+                    <label>GENDER</label>
+                    <select id="editGender">
+                        <option value="Male">Male</option>
+                        <option value="Female">Female</option>
+                        <option value="Not Specified">Not Specified</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label>EMAIL</label>
+                    <input type="email" id="editEmail" placeholder="Enter your email">
+                </div>
+
+               
+
+                <button id="saveProfile" style="margin-top:20px;">SAVE CHANGES</button>
+                <p id="saveMsg" style="margin-top:10px;"></p>
+            </div>
+
+            <div class="profile-stats card">
+                <h3 style="font-family:'Orbitron'; color:#00d4ff;">STATISTICS</h3>
+                <div class="stat-row">
+                    <span>TOTAL SCORE:</span>
+                    <span id="totalScore" style="color:#00d4ff;">0</span>
+                </div>
+                <div class="stat-row">
+                    <span>ACTIVITIES COMPLETED:</span>
+                    <span id="activitiesCompleted" style="color:#00ff88;">0</span>
+                </div>
+                <div class="stat-row">
+                    <span>REMINDERS SET:</span>
+                    <span id="remindersSet" style="color:#ffaa00;">0</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="auth.js"></script>
+    <script src="profile.js"></script>
+    <script>
+        onAuthStateChange(async u => {
+            if (!u) location.href = 'index.html';
+        });
+        document.getElementById('logout').onclick = async () => { await signOutUser(); location.href='index.html'; };
+    </script>
+</body>
+</html>

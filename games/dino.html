@@ -1,0 +1,204 @@
+<!doctype html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>AGENT DINO | SYSTEM UNLOCK</title>
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <style>
+        :root { --sys-blue: #00d4ff; --sys-dark: #000a12; }
+        body { margin: 0; background: var(--sys-dark); color: white; font-family: 'Orbitron', sans-serif; overflow: hidden; }
+        
+        .hud { display: flex; justify-content: space-between; padding: 20px; background: rgba(0,212,255,0.1); border-bottom: 2px solid var(--sys-blue); align-items: center; }
+        #cv { display: block; margin: 10px auto; background: #000; border: 2px solid var(--sys-blue); border-radius: 15px; box-shadow: 0 0 50px rgba(0, 212, 255, 0.2); max-width: 95%; height: auto; }
+        
+        /* SOLO LEVELING INVENTORY PANEL */
+        #access-panel { 
+            display: none; text-align: center; padding: 40px; 
+            background: var(--sys-dark); position: fixed; inset: 0; 
+            z-index: 1000; flex-direction: column; align-items: center; justify-content: center;
+        }
+
+        .inventory-title { 
+            color: var(--sys-blue); font-size: 32px; letter-spacing: 8px; 
+            margin-bottom: 40px; text-shadow: 0 0 15px var(--sys-blue); 
+        }
+
+        .app-grid { display: grid; grid-template-columns: repeat(3, 140px); gap: 20px; justify-content: center; }
+        
+        .app-card { 
+            width: 120px; height: 130px; background: rgba(0, 212, 255, 0.05); border: 1px solid var(--sys-blue);
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+            text-decoration: none; color: white; transition: 0.3s;
+        }
+        .app-card:hover { border-color: #fff; box-shadow: 0 0 20px var(--sys-blue); transform: translateY(-5px); }
+        .app-card img { width: 50px; height: 50px; margin-bottom: 12px; border-radius: 8px; }
+        .app-card span { font-size: 9px; letter-spacing: 1px; }
+
+        .btn-main { background: var(--sys-blue); color: #000; padding: 15px 40px; font-size: 18px; border: none; cursor: pointer; font-weight: 900; border-radius: 5px; font-family: 'Orbitron'; box-shadow: 0 0 20px var(--sys-blue); }
+        .gauge-container { width: 150px; height: 10px; background: #222; border-radius: 5px; overflow: hidden; border: 1px solid var(--sys-blue); }
+        #gauge-fill { width: 0%; height: 100%; background: var(--sys-blue); transition: width 0.1s; }
+    </style>
+</head>
+<body>
+
+<div class="hud">
+    <div style="color: var(--sys-blue); font-size: 12px;">SYSTEM SYNC</div>
+    <div style="text-align: center;">
+        <div class="gauge-container"><div id="gauge-fill"></div></div>
+    </div>
+    <div style="font-size: 24px; color: #fff; text-shadow: 0 0 10px var(--sys-blue);">LEVEL: <span id="score">0</span>%</div>
+    <div id="status" style="color:#ffb020;">LINK: STANDBY</div>
+</div>
+
+<canvas id="cv" width="900" height="400"></canvas>
+
+<div id="game-controls" style="text-align: center; margin-top: 20px;">
+    <button id="start" class="btn-main">INITIALIZE SYSTEM</button>
+</div>
+
+<div id="access-panel">
+    <div class="inventory-title">[ SYSTEM INVENTORY ]</div>
+    <div class="app-grid">
+        <a href="https://www.instagram.com" target="_blank" class="app-card">
+            <img src="https://upload.wikimedia.org/wikipedia/commons/e/e7/Instagram_logo_2016.svg">
+            <span>INSTAGRAM</span>
+        </a>
+        <a href="https://web.whatsapp.com" target="_blank" class="app-card">
+            <img src="https://upload.wikimedia.org/wikipedia/commons/6/6b/WhatsApp.svg">
+            <span>WHATSAPP</span>
+        </a>
+        <a href="https://www.youtube.com" target="_blank" class="app-card">
+            <img src="https://upload.wikimedia.org/wikipedia/commons/0/09/YouTube_full-color_icon_%282017%29.svg">
+            <span>YOUTUBE</span>
+        </a>
+        <a href="https://www.google.com" target="_blank" class="app-card">
+            <img src="https://upload.wikimedia.org/wikipedia/commons/c/c1/Google_%22G%22_Logo.svg">
+            <span>GOOGLE</span>
+        </a>
+        <a href="https://chatgpt.com" target="_blank" class="app-card">
+            <img src="https://upload.wikimedia.org/wikipedia/commons/0/04/ChatGPT_logo.svg">
+            <span>CHATGPT</span>
+        </a>
+    </div>
+    <p style="color: var(--sys-blue); margin-top: 30px; font-size: 12px; letter-spacing: 2px;">ARRISE, PLAYER.</p>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js"></script>
+
+<script>
+const cv = document.getElementById('cv'), ctx = cv.getContext('2d');
+let running = false, score = 0, frame = 0, speed = 0;
+let agent = { x: 120, y: 340, vy: 0, jumping: false, trail: [] };
+let obstacles = [];
+const TARGET_SCORE = 10; 
+
+const hands = new Hands({ locateFile: (f) => `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${f}` });
+hands.setOptions({ maxNumHands: 2, modelComplexity: 1, minDetectionConfidence: 0.6 });
+
+hands.onResults((results) => {
+    if (!running) return;
+    speed = 0; 
+    const statusEl = document.getElementById('status');
+    const gauge = document.getElementById('gauge-fill');
+
+    if (results.multiHandLandmarks && results.multiHandLandmarks.length > 0) {
+        statusEl.textContent = "LINK: STABLE";
+        statusEl.style.color = "#00ff88";
+        speed = 10; 
+        if (results.multiHandLandmarks.length === 2) {
+            let avgY = (results.multiHandLandmarks[0][0].y + results.multiHandLandmarks[1][0].y) / 2;
+            let power = Math.max(0, Math.min(100, (0.5 - avgY) * 200));
+            gauge.style.width = power + "%";
+            if (avgY < 0.5 && !agent.jumping) {
+                agent.jumping = true;
+                agent.vy = 12 + ((0.5 - avgY) * 42);
+            }
+        }
+    } else {
+        statusEl.textContent = "LINK: LOST";
+        statusEl.style.color = "#ff4444";
+        gauge.style.width = "0%";
+    }
+});
+
+function drawDino(x, y, color) {
+    ctx.fillStyle = color;
+    ctx.shadowBlur = 15; ctx.shadowColor = color;
+    ctx.fillRect(x, y - 35, 30, 25);
+    ctx.fillRect(x + 20, y - 50, 15, 20);
+    ctx.fillRect(x + 25, y - 55, 15, 10);
+    ctx.fillRect(x - 10, y - 30, 10, 10);
+    ctx.fillRect(x + 5, y - 10, 6, 10); 
+    ctx.fillRect(x + 18, y - 10, 6, 10);
+    ctx.shadowBlur = 0;
+}
+
+function draw() {
+    if (!running) return;
+    frame++;
+    ctx.fillStyle = '#000'; ctx.fillRect(0, 0, cv.width, cv.height);
+
+    ctx.strokeStyle = '#003366';
+    for(let i=0; i<cv.width; i+=45) {
+        let xPos = (i - (frame * speed * 0.5) % 45);
+        ctx.beginPath(); ctx.moveTo(xPos, 340); ctx.lineTo(xPos, 400); ctx.stroke();
+    }
+    ctx.strokeStyle = '#00d4ff'; ctx.lineWidth = 4;
+    ctx.beginPath(); ctx.moveTo(0, 340); ctx.lineTo(900, 340); ctx.stroke();
+
+    if (speed > 0) agent.trail.push({x: agent.x, y: agent.y, op: 0.6});
+    agent.trail.forEach((t, i) => {
+        drawDino(t.x, t.y, `rgba(0, 212, 255, ${t.op})`);
+        t.op -= 0.04; t.x -= speed;
+        if(t.op <= 0) agent.trail.splice(i, 1);
+    });
+
+    drawDino(agent.x, agent.y, '#00d4ff');
+
+    obstacles.forEach((o, i) => {
+        ctx.fillStyle = '#ff3366';
+        ctx.beginPath();
+        ctx.moveTo(o.x, 340); ctx.lineTo(o.x + 18, 275); ctx.lineTo(o.x + 36, 340);
+        ctx.fill();
+        o.x -= speed;
+        if (o.x < agent.x + 40 && o.x + 30 > agent.x && agent.y > 310) location.reload();
+        if (o.x < -60) obstacles.splice(i, 1);
+    });
+
+    if (agent.jumping) {
+        agent.y -= agent.vy;
+        agent.vy -= 1.1; 
+        if (agent.y >= 340) { agent.y = 340; agent.jumping = false; agent.vy = 0; }
+    }
+
+    if (speed > 0) {
+        if (frame % 7 === 0) score += 0.5;
+        if (frame % 75 === 0 && score < (TARGET_SCORE - 2)) obstacles.push({ x: 950 });
+    }
+
+    document.getElementById('score').textContent = Math.floor(Math.min(score, TARGET_SCORE));
+    if (score >= TARGET_SCORE) { finishGame(); return; }
+    requestAnimationFrame(draw);
+}
+
+function finishGame() {
+    running = false;
+    document.getElementById('access-panel').style.display = 'flex';
+    document.getElementById('game-controls').style.display = 'none';
+}
+
+const camera = new Camera(document.createElement('video'), {
+    onFrame: async () => { await hands.send({ image: camera.video }); },
+    width: 640, height: 480
+});
+
+document.getElementById('start').addEventListener('click', () => {
+    running = true;
+    document.getElementById('start').style.display = 'none';
+    camera.start();
+    draw();
+});
+</script>
+</body>
+</html>

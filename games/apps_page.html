@@ -1,0 +1,81 @@
+<!doctype html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>SECURE DASHBOARD | AGENT ACCESS</title>
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <style>
+        body { margin: 0; background: #00020a; color: white; font-family: 'Orbitron', sans-serif; }
+        .container { padding: 40px; max-width: 1000px; margin: auto; }
+        h1 { color: #00ff88; text-transform: uppercase; letter-spacing: 5px; border-bottom: 2px solid #00ff88; padding-bottom: 10px; }
+        
+        /* App Grid Layout */
+        .app-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 30px; margin-top: 40px; }
+        
+        .app-card { 
+            background: rgba(0, 212, 255, 0.05); 
+            border: 1px solid #00d4ff; 
+            border-radius: 15px; 
+            padding: 20px; 
+            text-align: center; 
+            cursor: pointer; 
+            transition: 0.3s;
+        }
+        .app-card:hover { 
+            background: rgba(0, 212, 255, 0.2); 
+            box-shadow: 0 0 20px #00d4ff; 
+            transform: translateY(-10px); 
+        }
+        .app-icon { font-size: 50px; margin-bottom: 15px; display: block; }
+        .app-name { font-weight: bold; color: #00d4ff; font-size: 14px; }
+        
+        .timer-info { color: #ffb020; margin-top: 20px; font-size: 12px; }
+    </style>
+</head>
+<body>
+
+<script>
+    // --- SECURITY GATEKEEPER ---
+    const expiry = localStorage.getItem('app_access_expiry');
+    const currentTime = new Date().getTime();
+
+    if (!expiry || currentTime > expiry) {
+        alert("ACCESS DENIED: Session expired or not authenticated. Return to Mission.");
+        window.location.href = 'index.html'; // Change 'index.html' to your game's filename
+    }
+</script>
+
+<div class="container">
+    <h1>System Apps</h1>
+    <div class="timer-info">SESSION STATUS: SECURE (Encrypted)</div>
+
+    <div class="app-grid">
+        <div class="app-card" onclick="alert('Launching YouTube...')">
+            <span class="app-icon">📺</span>
+            <span class="app-name">NEON TUBE</span>
+        </div>
+
+        <div class="app-card" onclick="alert('Opening Neural Mail...')">
+            <span class="app-icon">✉️</span>
+            <span class="app-name">CYBER MAIL</span>
+        </div>
+
+        <div class="app-card" onclick="alert('Accessing Data Files...')">
+            <span class="app-icon">📂</span>
+            <span class="app-name">DATA CORE</span>
+        </div>
+
+        <div class="app-card" onclick="alert('Loading Satellite Map...')">
+            <span class="app-icon">🌐</span>
+            <span class="app-name">GRID MAP</span>
+        </div>
+
+        <div class="app-card" onclick="location.reload()">
+            <span class="app-icon">🔄</span>
+            <span class="app-name">REFRESH</span>
+        </div>
+    </div>
+</div>
+
+</body>
+</html>

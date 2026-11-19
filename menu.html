@@ -1,0 +1,70 @@
+<!doctype html>
+<html>
+<head>
+    <title>System Menu</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
+    <script src="firebase.js"></script>
+
+    <div class="nav-header">
+        <div class="brand" style="font-family:'Orbitron'; color:#00d4ff;">SYSTEM MENU</div>
+        <div class="nav-links">
+            <a href="menu.html" class="nav-link active">MENU</a>
+            <a href="dashboard.html" class="nav-link">DASHBOARD</a>
+            <a href="profile.html" class="nav-link">PROFILE</a>
+            <a href="activity.html" class="nav-link">ACTIVITY</a>
+            <a href="history.html" class="nav-link">HISTORY</a>
+            <a href="reminders.html" class="nav-link">REMINDERS</a>
+            <a href="admin.html" class="nav-link">ADMIN</a>
+            <button id="logout" style="clip-path:none; padding:5px 15px;">LOGOUT</button>
+        </div>
+    </div>
+
+    <div class="main-wrapper">
+        <div style="display:flex; flex-direction:column; align-items:center;">
+            <h2 style="margin-bottom:40px; font-family:'Orbitron';">SELECT QUEST</h2>
+            
+            <div class="games-grid">
+                <div class="game-card card" onclick="location.href='games/runner.html'">
+                    <h3>RUNNER</h3>
+                    <button>ENTER</button>
+                </div>
+                <div class="game-card card" onclick="location.href='games/snake.html'">
+                    <h3>SNAKE</h3>
+                    <button>ENTER</button>
+                </div>
+                <div class="game-card card" onclick="location.href='games/dino.html'">
+                    <h3>DINO</h3>
+                    <button>ENTER</button>
+                </div>
+                 <div class="game-card card" onclick="location.href='games/warmup.html'">
+                    <h3>warmup</h3>
+                    <button>ENTER</button>
+                </div>
+            </div>
+
+            <div id="unlocked" style="margin-top:30px; display:none;" class="card">
+                <h4 style="color:#bc6ff1;">REWARDS UNLOCKED</h4>
+                <button onclick="window.open('https://youtube.com')">YouTube</button>
+                <button onclick="window.open('https://web.whatsapp.com')">WhatsApp</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="auth.js"></script>
+    <script>
+        onAuthStateChange(async u => {
+            if (!u) location.href = 'index.html';
+            const doc = await getUserDoc(u.uid);
+            if (doc && doc.appsUnlockedUntil && new Date(doc.appsUnlockedUntil) > new Date()) {
+                document.getElementById('unlocked').style.display = 'block';
+            }
+        });
+        document.getElementById('logout').onclick = async () => { await signOutUser(); location.href='index.html'; };
+    </script>
+</body>
+</html>

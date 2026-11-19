@@ -1,0 +1,44 @@
+<!doctype html>
+<html>
+<head>
+    <title>System Login</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
+    <script src="firebase.js"></script>
+
+    <div class="main-wrapper">
+    <div class="card">
+        <h2 style="font-family:'Orbitron'; color:#00d4ff;">SYSTEM ACCESS</h2>
+        <input id="email" placeholder="EMAIL">
+        <input id="password" type="password" placeholder="PASSWORD">
+        <button id="loginBtn">AUTHENTICATE</button>
+        <p>New? <a href="register.html" style="color:#bc6ff1;">Join Guild</a></p>
+        <p id="msg" style="color: #ff4d4d; margin-top: 10px;"></p>
+    </div>
+</div>
+
+<script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+<script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
+<script src="firebase.js"></script>
+<script src="auth.js"></script>
+
+<script>
+    document.getElementById('loginBtn').onclick = async () => {
+        const e = document.getElementById('email').value;
+        const p = document.getElementById('password').value;
+        
+        document.getElementById('msg').textContent = "AUTHENTICATING...";
+        const res = await loginUser(e, p);
+        
+        if(res.success) {
+            window.location.href = 'menu.html';
+        } else {
+            document.getElementById('msg').textContent = "ACCESS DENIED: " + res.error;
+        }
+    };
+</script>
+</body>
+</html>
